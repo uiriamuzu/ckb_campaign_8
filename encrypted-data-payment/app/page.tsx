@@ -11,6 +11,13 @@ import { payForOffer, validateOffer } from '../lib/payment';
 import { createBrowserNodeSession } from '../lib/node-session';
 import { encryptedSessionKey, encryptedBuyerProfile, encryptedSellerProfile, savedNodeIdentifier, readEncryptedProgress, type EncryptedLessonProgress } from '../lib/progress';
 
+type Item = EncryptedOffer & {
+  preview: Pick<Spec, 'title' | 'colors' | 'type'>;
+  status: 'locked' | 'paying' | 'unlocked' | 'failed';
+  payment?: GetPaymentResult;
+  spec?: Spec;
+};
+
 type Role = 'buyer' | 'seller';
 const ckb = (value: string) => `${Number(BigInt(value)) / 100_000_000}`;
 
@@ -39,7 +46,7 @@ export default function Page() {
   useEffect(() => {
     const saved = readEncryptedProgress(sessionStorage, localStorage);
     progress.current = saved;
-    if (saved) { setGenerated(saved.generatedOffer); setReceived(saved.buyerOfferText); setAttempt(saved.attemptedPaymentHash); setTested(saved.triedWithoutKey); }
+    if (saved) { setGenerated(saved.generatedOffer); setReceived(saved.buyerOfferText);  }
     setLoaded(true);
     const owned = sessions.current;
     const stop = () => { for (const session of Object.values(owned)) void session.stop().catch(() => {}); };
@@ -118,7 +125,7 @@ export default function Page() {
   }
 
   async function makeOffer() {
-    if (!nodes.current.seller || !channels.seller || !routeReady || generated || attempt) return;
+    if (!nodes.current.seller || !channels.seller || !routeReady || generated) return;
     const encrypted = await Promise.all(products.map(product => encryptResult(JSON.stringify(product))));
     const seller = nodes.current.seller;
     const channel = channels.seller;
@@ -131,54 +138,61 @@ export default function Page() {
     save({ generatedOffer: value }); setGenerated(value); setStatus('Invoice created.');
   }
 
+  const paymentStorageKey = (item: EncryptedOffer) =>
+    'shop:payment:' + savedNodeIdentifier(localStorage, encryptedBuyerProfile) + ':' + item.paymentHash;
+
   async function validate() {
-    if (!nodes.current.buyer) return;
-    const parsed = parseOffer(JSON.stringify(JSON.parse(received)[0]));
-    await validateOffer(nodes.current.buyer, parsed);
-    if (attempt && parsed.paymentHash.toLowerCase() !== attempt.toLowerCase()) throw new Error('Restore the offer for the previous payment.');
-    save({ buyerOfferText: received }); setOffer(parsed); setStatus('Offer validated.');
+    const buyer = nodes.current.buyer;
+    if (!buyer) return;
+    const entries = JSON.parse(received);
+    if (!Array.isArray(entries) || !entries.length) throw new Error('Paste a catalogue offer.');
+    const parsed: Item[] = [];
+    for (const entry of entries) {
+      const offer = parseOffer(JSON.stringify(entry));
+      const preview = entry.preview;
+      if (typeof preview?.title !== 'string' ||
+          !Array.isArray(preview.colors) || !Array.isArray(preview.type) ||
+          !preview.colors.every((c: Spec['colors'][number]) => typeof c?.name === 'string' && /^#[0-9a-f]{6}$/i.test(c.hex)) ||
+          !preview.type.every((t: Spec['type'][number]) => typeof t?.name === 'string' && Number.isInteger(t.size) && t.size >= 8 && t.size <= 96)) {
+        throw new Error('Invalid product preview.');
+      }
+      if (parsed.some(item => item.iv === offer.iv || item.paymentHash === offer.paymentHash)) throw new Error('Duplicate IV or payment hash.');
+      await validateOffer(buyer, offer);
+      parsed.push({ ...offer, preview, status: sessionStorage.getItem(paymentStorageKey(offer)) ? 'paying' : 'locked' });
+    }
+    save({ buyerOfferText: received });
+    setItems(parsed);
+    setStatus('Catalogue validated.');
   }
 
-  async function testLock() {
-    if (!offer) return;
-    try { await decryptResult(offer, toHex(crypto.getRandomValues(new Uint8Array(32)))); }
-    catch { save({ triedWithoutKey: true }); setTested(true); setStatus('Decryption rejected: key unavailable.'); }
+  function updateItem(item: Item, update: Partial<Item>) {
+    setItems(previous => previous.map(current => current.paymentHash === item.paymentHash ? { ...current, ...update } : current));
   }
 
-  async function pay() {
-    if (!nodes.current.buyer || !offer || !tested || !routeReady) return;
-    const result = await payForOffer(nodes.current.buyer, offer, attempt, (hash) => {
-      save({ attemptedPaymentHash: hash }); setAttempt(hash);
-    }, payment?.status === 'Failed');
-    acceptPayment(result);
+  async function testLock(item: Item) {
+    try { await decryptResult(item, toHex(crypto.getRandomValues(new Uint8Array(32)))); }
+    catch { setStatus('Decryption rejected: key unavailable.'); }
+  }
+
+  async function pay(item: Item, check = false) {
+    const buyer = nodes.current.buyer;
+    if (!buyer) return;
+    const storageKey = paymentStorageKey(item);
+    const result = check
+      ? await buyer.getPayment({ payment_hash: item.paymentHash })
+      : await payForOffer(buyer, item, sessionStorage.getItem(storageKey) ? item.paymentHash : '', () => {
+          sessionStorage.setItem(storageKey, 'yes');
+          updateItem(item, { status: 'paying' });
+        }, item.payment?.status === 'Failed');
+    updateItem(item, { payment: result, status: result.status === 'Failed' ? 'failed' : 'paying' });
+    setStatus(item.preview.title + ' — payment ' + result.status);
+    if (result.status === 'Failed') setError(result.failed_error ?? 'Payment failed.');
     await Promise.all([refresh('buyer'), refresh('seller')]);
   }
-
-  function acceptPayment(result: GetPaymentResult) {
-    setPayment(result); setStatus(`Payment: ${result.status}`);
-    if (result.status === 'Failed') setError(result.failed_error ?? 'Payment failed. Check channel liquidity before retrying.');
-    if (result.status === 'Success' && result.payment_preimage) setKey(result.payment_preimage);
-  }
-
-  async function checkPayment() {
-    if (!nodes.current.buyer || !offer || !attempt) return;
-    await validateOffer(nodes.current.buyer, offer);
-    acceptPayment(await nodes.current.buyer.getPayment({ payment_hash: attempt as `0x${string}` }));
-  }
-
-  function startAnotherOffer() {
-    if (busy || (attempt && payment?.status !== 'Failed')) return;
-    save({ generatedOffer: '', buyerOfferText: '', attemptedPaymentHash: '', triedWithoutKey: false, completedSteps: [] });
-    setGenerated(''); setReceived(''); setOffer(null); setAttempt(''); setTested(false);
-    setPayment(null); setKey(''); setDecrypted(''); setError('');
-    setStatus('Create a fresh encrypted offer.');
-  }
-
   const routeReady = Boolean(connected.buyer && connected.seller && channels.buyer && ready(channels.buyer) && BigInt(channels.buyer.local_balance) >= 100_000_000n && channels.seller && ready(channels.seller) && BigInt(channels.seller.remote_balance) >= 100_000_000n);
-  const canSubmit = Boolean(offer && tested && routeReady && !key && (!attempt || payment?.status === 'Failed'));
 
   return <main>
-    <p className="eyebrow">Fiber Testnet</p><h1>Pay to decrypt</h1>
+    <p className="eyebrow">Fiber Testnet</p><h1>Design spec shop</h1>
     {status && <p className="status" role="status">{status}</p>}{error && <p role="alert">{error}</p>}
     <div className="grid">{(['buyer', 'seller'] as const).map((role) => <section className="card" key={role}>
       <h2>{role === 'buyer' ? 'Buyer A' : 'Seller C'}</h2>
@@ -193,19 +207,23 @@ export default function Page() {
     <section className="card"><h2>Liquidity</h2><button disabled={busy || !channels.seller || !ready(channels.seller) || BigInt(channels.seller.local_balance) < 500_000_000n} onClick={() => void run(moveLiquidity)}>Send / check 5 CKB transfer</button></section>
     <div className="grid exchange"><section className="card"><h2>Seller</h2>
       <ul>{products.map(product => <li key={product.title}>{product.title} · 1 CKB</li>)}</ul>
-      <button disabled={busy || !routeReady || Boolean(generated || attempt)} onClick={() => void run(makeOffer)}>Encrypt & create four invoices</button>
+      <button disabled={busy || !routeReady || Boolean(generated)} onClick={() => void run(makeOffer)}>Encrypt & create four invoices</button>
       <textarea aria-label="Generated offer" readOnly value={generated} />
       <button disabled={!generated || busy} onClick={() => void run(async () => { await navigator.clipboard.writeText(generated); setStatus('Offer copied.'); })}>Copy offer</button>
     </section><section className="card"><h2>Buyer</h2>
-      <textarea aria-label="Received offer" disabled={busy || Boolean(offer || attempt)} value={received} onChange={e => { setReceived(e.target.value); setTested(false); }} />
-      <button disabled={busy || !received || !addresses.buyer || Boolean(offer)} onClick={() => void run(validate)}>Validate offer</button>
-      {!tested && <button disabled={busy || !offer} onClick={() => void run(testLock)}>Decrypt without key</button>}
-      {canSubmit && <button disabled={busy} onClick={() => void run(pay)}>{attempt ? 'Retry failed payment' : 'Pay 1 CKB'}</button>}
-      {attempt && !key && <button disabled={busy || !offer || !addresses.buyer} onClick={() => void run(checkPayment)}>Check payment status</button>}
-      <button disabled={busy || !offer || !key || Boolean(decrypted)} onClick={() => void run(async () => { setDecrypted(await decryptResult(offer!, key)); })}>Decrypt with revealed key</button>
+      <textarea aria-label="Received offer" disabled={busy || items.length > 0} value={received} onChange={e => setReceived(e.target.value)} />
+      <button disabled={busy || !received || !addresses.buyer || items.length > 0} onClick={() => void run(validate)}>Validate catalogue</button>
     </section></div>
-    {payment?.status === 'Success' && <section className="card"><h2>Receipt</h2><p>Amount: 1 CKB · Fee: {ckb(payment.fee)} CKB · Total: {ckb(`0x${(100_000_000n + BigInt(payment.fee)).toString(16)}`)} CKB</p><code>{payment.payment_hash}</code></section>}
-    {decrypted && <section className="result"><h2>Decrypted result</h2><pre>{decrypted}</pre></section>}
-    {(generated || received) && (!attempt || payment?.status === 'Failed') && <button disabled={busy} onClick={() => void run(async () => startAnotherOffer())}>Start another offer</button>}
+    <div className="grid">{items.map((item, index) => <article className="card" key={item.paymentHash}>
+      <h2>{item.preview.title}</h2>
+      <p>{item.status} · 1 CKB</p>
+      {index === 0 && item.status === 'locked' && <button disabled={busy} onClick={() => void run(() => testLock(item))}>Decrypt without key</button>}
+      {(item.status === 'locked' || item.status === 'failed') && <button disabled={busy || !routeReady} onClick={() => void run(() => pay(item))}>{item.status === 'failed' ? 'Retry payment' : 'Pay 1 CKB'}</button>}
+      {item.status === 'paying' && <button disabled={busy} onClick={() => void run(() => pay(item, true))}>Check payment status</button>}
+      {item.payment?.status === 'Success' && <section><h3>Receipt</h3>
+        <p>Amount 1 CKB · Fee {ckb(item.payment.fee)} CKB · Total {ckb(String(100_000_000n + BigInt(item.payment.fee)))} CKB</p>
+        <code>{item.payment.payment_hash}</code>
+      </section>}
+    </article>)}</div>
   </main>;
 }
