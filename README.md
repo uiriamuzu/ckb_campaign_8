@@ -53,6 +53,7 @@ See the [Fiber tutorial](https://www.fiber.world/docs/build/encrypted-data-payme
 
 - Harbor payment hash `0x6c88fd251e46704c01fe6af60f4819b10dd46249bf553dfba952be281c7259c1`
 - PRD template payment hash `0xafbaad621dd802708eef49d4edbc43ea89da19c55d1e270fc23d6ffd0b5b2f23`
+- Harbor payment preimage `0x6207f94e070e56a9a31cb7c4ab142577ad09e318d23ad92098b1b5dbb3e3e490`
 
 Hashing the settled Harbor preimage with SHA-256 reproduced its payment hash. The form component and motion specifications stayed locked.
 
