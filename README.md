@@ -44,3 +44,4 @@ The reported run paid 1 CKB plus 0.001 CKB routing fee, for 1.001 CKB per invoic
 The example specs ship as public demo fixtures in the application source. The paywall demonstration runs on their encrypted offers. The shop has no account system, mainnet support, or quality guarantee. Previews are seller-supplied public data.
 
 See the [Fiber tutorial](https://www.fiber.world/docs/build/encrypted-data-payment).
+[Shot list](docs/screenshots/SHOTLIST.md) and [recording script](docs/RECORDING.md). Live captures are pending.
