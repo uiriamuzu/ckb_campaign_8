@@ -18,3 +18,14 @@ code { overflow-wrap: anywhere; color: #a3f53a; }
 .result span { color: #8e978d; font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .result pre { min-height: 80px; margin: 0; padding: 14px; background: #0a0d0a; color: #dfffc5; white-space: pre-wrap; }
 @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } .route { align-items: stretch; flex-direction: column; text-align: center; } }
+
+.spec { margin-top: 1rem; overflow-wrap: anywhere; }
+.spec li { margin-block: .45rem; }
+.swatches, .type-scale, .spacing { padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: .75rem; }
+.swatches li { flex: 1 1 85px; }
+.swatches span { display: block; height: 2.5rem; border: 1px solid #777; border-radius: .4rem; }
+.swatches code { display: block; }
+.type-scale { align-items: baseline; }
+.type-scale li { display: grid; gap: .25rem; }
+.type-scale small { font-size: .75rem; }
+.spacing span { display: block; height: .35rem; background: currentColor; }

@@ -34,12 +34,7 @@ export default function Page() {
 
   const [generated, setGenerated] = useState('');
   const [received, setReceived] = useState('');
-  const [offer, setOffer] = useState<EncryptedOffer | null>(null);
-  const [attempt, setAttempt] = useState('');
-  const [tested, setTested] = useState(false);
-  const [payment, setPayment] = useState<GetPaymentResult | null>(null);
-  const [key, setKey] = useState('');
-  const [decrypted, setDecrypted] = useState('');
+  const [items, setItems] = useState<Item[]>([]);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
 
@@ -229,7 +224,29 @@ export default function Page() {
         <p>Amount 1 CKB · Fee {ckb(item.payment.fee)} CKB · Total {ckb(String(100_000_000n + BigInt(item.payment.fee)))} CKB</p>
         <code>{item.payment.payment_hash}</code>
       </section>}
-      {item.spec && <pre>{JSON.stringify(item.spec, null, 2)}</pre>}
+      {item.spec && <section className="spec" aria-label="Unlocked specification">
+        <h3>Colour tokens</h3>
+        <Swatches colors={item.spec.colors} />
+        <h3>Type scale</h3>
+        <TypeScale samples={item.spec.type} />
+        <h3>Spacing</h3>
+        <ul className="spacing">{item.spec.spacing.map(value => <li key={value}><span style={{ width: value }} />{value} px</li>)}</ul>
+        <h3>Components</h3>
+        <ul>{item.spec.components.map(component => <li key={component}>{component}</li>)}</ul>
+      </section>}
     </article>)}</div>
   </main>;
+}
+
+function Swatches({ colors }: { colors: Spec['colors'] }) {
+  return <ul className="swatches">{colors.map(({ name, hex }) => <li key={name}>
+    <span style={{ backgroundColor: hex }} />
+    {name} <code>{hex}</code>
+  </li>)}</ul>;
+}
+
+function TypeScale({ samples }: { samples: Spec['type'] }) {
+  return <ul className="type-scale">{samples.map(({ name, size }) => <li key={name}>
+    <span style={{ fontSize: size }}>Aa</span><small>{name} · {size} px</small>
+  </li>)}</ul>;
 }
