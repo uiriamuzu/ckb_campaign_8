@@ -187,6 +187,11 @@ export default function Page() {
     updateItem(item, { payment: result, status: result.status === 'Failed' ? 'failed' : 'paying' });
     setStatus(item.preview.title + ' — payment ' + result.status);
     if (result.status === 'Failed') setError(result.failed_error ?? 'Payment failed.');
+    if (result.status === 'Success') {
+      if (!result.payment_preimage) throw new Error('Payment succeeded but the preimage is unavailable.');
+      const spec: Spec = JSON.parse(await decryptResult(item, result.payment_preimage));
+      updateItem(item, { spec, status: 'unlocked' });
+    }
     await Promise.all([refresh('buyer'), refresh('seller')]);
   }
   const routeReady = Boolean(connected.buyer && connected.seller && channels.buyer && ready(channels.buyer) && BigInt(channels.buyer.local_balance) >= 100_000_000n && channels.seller && ready(channels.seller) && BigInt(channels.seller.remote_balance) >= 100_000_000n);
@@ -224,6 +229,7 @@ export default function Page() {
         <p>Amount 1 CKB · Fee {ckb(item.payment.fee)} CKB · Total {ckb(String(100_000_000n + BigInt(item.payment.fee)))} CKB</p>
         <code>{item.payment.payment_hash}</code>
       </section>}
+      {item.spec && <pre>{JSON.stringify(item.spec, null, 2)}</pre>}
     </article>)}</div>
   </main>;
 }
