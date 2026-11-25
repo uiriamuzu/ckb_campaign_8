@@ -24,7 +24,7 @@ export default function Page() {
   const [addresses, setAddresses] = useState<Partial<Record<Role, string>>>({});
   const [connected, setConnected] = useState<Partial<Record<Role, boolean>>>({});
   const [channels, setChannels] = useState<Partial<Record<Role, Channel>>>({});
-  const [selected, setSelected] = useState(0);
+
   const [generated, setGenerated] = useState('');
   const [received, setReceived] = useState('');
   const [offer, setOffer] = useState<EncryptedOffer | null>(null);
@@ -124,13 +124,16 @@ export default function Page() {
     const channel = channels.seller;
     const invoices = [];
     for (const payload of encrypted) invoices.push(await createOffer(seller, channel, payload));
-    const value = invoices[selected];
+    const value = JSON.stringify(invoices.map((invoice, index) => {
+      const { title, colors, type } = products[index];
+      return { ...JSON.parse(invoice), preview: { title, colors, type } };
+    }), null, 2);
     save({ generatedOffer: value }); setGenerated(value); setStatus('Invoice created.');
   }
 
   async function validate() {
     if (!nodes.current.buyer) return;
-    const parsed = parseOffer(received);
+    const parsed = parseOffer(JSON.stringify(JSON.parse(received)[0]));
     await validateOffer(nodes.current.buyer, parsed);
     if (attempt && parsed.paymentHash.toLowerCase() !== attempt.toLowerCase()) throw new Error('Restore the offer for the previous payment.');
     save({ buyerOfferText: received }); setOffer(parsed); setStatus('Offer validated.');
@@ -189,8 +192,8 @@ export default function Page() {
     </section>)}</div>
     <section className="card"><h2>Liquidity</h2><button disabled={busy || !channels.seller || !ready(channels.seller) || BigInt(channels.seller.local_balance) < 500_000_000n} onClick={() => void run(moveLiquidity)}>Send / check 5 CKB transfer</button></section>
     <div className="grid exchange"><section className="card"><h2>Seller</h2>
-      <label>Product <select disabled={busy || Boolean(generated)} value={selected} onChange={e => setSelected(Number(e.target.value))}>{products.map((product, index) => <option key={product.title} value={index}>{product.title}</option>)}</select></label>
-      <button disabled={busy || !routeReady || Boolean(generated || attempt)} onClick={() => void run(makeOffer)}>Encrypt & create 1 CKB Invoice</button>
+      <ul>{products.map(product => <li key={product.title}>{product.title} · 1 CKB</li>)}</ul>
+      <button disabled={busy || !routeReady || Boolean(generated || attempt)} onClick={() => void run(makeOffer)}>Encrypt & create four invoices</button>
       <textarea aria-label="Generated offer" readOnly value={generated} />
       <button disabled={!generated || busy} onClick={() => void run(async () => { await navigator.clipboard.writeText(generated); setStatus('Offer copied.'); })}>Copy offer</button>
     </section><section className="card"><h2>Buyer</h2>
