@@ -87,11 +87,11 @@ function normalizeLastHop(value: unknown): EncryptedOffer['lastHop'] {
   };
 }
 
-export async function createOffer(seller: FiberBrowserNode, sellerChannel: Channel, plaintext: string) {
+export async function createOffer(seller: FiberBrowserNode, sellerChannel: Channel, plaintext: string | Awaited<ReturnType<typeof encryptResult>>) {
   if (!sellerChannel.channel_outpoint) {
     throw new Error('Seller channel does not have a confirmed outpoint.');
   }
-  const encrypted = await encryptResult(plaintext);
+  const encrypted = typeof plaintext === 'string' ? await encryptResult(plaintext) : plaintext;
   const invoice = await seller.newInvoice({
     amount: '0x5f5e100', // 1 CKB
     currency: 'Fibt',

@@ -4,7 +4,7 @@ import { products, type Spec } from '../lib/catalogue';
 import { channelFundingGuidance } from '../lib/channel-funding';
 import { useEffect, useRef, useState } from 'react';
 import { scriptToAddress, type Channel, type FiberBrowserNode, type GetPaymentResult } from '@fiber-pay/sdk/browser';
-import { decryptResult, toHex } from '../lib/crypto';
+import { decryptResult, encryptResult, toHex } from '../lib/crypto';
 import { bottle, channelFundingCkb, connectAndOpenChannel, readChannel, ready, startRole } from '../lib/fiber';
 import { createOffer, parseOffer, type EncryptedOffer } from '../lib/offer';
 import { payForOffer, validateOffer } from '../lib/payment';
@@ -119,7 +119,8 @@ export default function Page() {
 
   async function makeOffer() {
     if (!nodes.current.seller || !channels.seller || !routeReady || generated || attempt) return;
-    const value = await createOffer(nodes.current.seller, channels.seller, JSON.stringify(products[selected]));
+    const encrypted = await Promise.all(products.map(product => encryptResult(JSON.stringify(product))));
+    const value = await createOffer(nodes.current.seller, channels.seller, encrypted[selected]);
     save({ generatedOffer: value }); setGenerated(value); setStatus('Invoice created.');
   }
 
