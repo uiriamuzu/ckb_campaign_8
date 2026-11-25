@@ -217,6 +217,11 @@ export default function Page() {
     <div className="grid">{items.map((item, index) => <article className="card" key={item.paymentHash}>
       <h2>{item.preview.title}</h2>
       <p>{item.status} · 1 CKB</p>
+      {!item.spec && <section aria-label="Free visual preview">
+        <h3>Free preview</h3>
+        <Swatches colors={item.preview.colors} />
+        <TypeScale samples={item.preview.type} />
+      </section>}
       {index === 0 && item.status === 'locked' && <button disabled={busy} onClick={() => void run(() => testLock(item))}>Decrypt without key</button>}
       {(item.status === 'locked' || item.status === 'failed') && <button disabled={busy || !routeReady} onClick={() => void run(() => pay(item))}>{item.status === 'failed' ? 'Retry payment' : 'Pay 1 CKB'}</button>}
       {item.status === 'paying' && <button disabled={busy} onClick={() => void run(() => pay(item, true))}>Check payment status</button>}
