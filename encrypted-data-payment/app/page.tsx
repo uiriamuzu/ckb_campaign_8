@@ -120,7 +120,11 @@ export default function Page() {
   async function makeOffer() {
     if (!nodes.current.seller || !channels.seller || !routeReady || generated || attempt) return;
     const encrypted = await Promise.all(products.map(product => encryptResult(JSON.stringify(product))));
-    const value = await createOffer(nodes.current.seller, channels.seller, encrypted[selected]);
+    const seller = nodes.current.seller;
+    const channel = channels.seller;
+    const invoices = [];
+    for (const payload of encrypted) invoices.push(await createOffer(seller, channel, payload));
+    const value = invoices[selected];
     save({ generatedOffer: value }); setGenerated(value); setStatus('Invoice created.');
   }
 
