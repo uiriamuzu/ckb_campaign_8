@@ -175,9 +175,10 @@ export default function Page() {
     const storageKey = paymentStorageKey(item);
     const result = check
       ? await buyer.getPayment({ payment_hash: item.paymentHash })
-      : await payForOffer(buyer, item, sessionStorage.getItem(storageKey) ? item.paymentHash : '', () => {
-          sessionStorage.setItem(storageKey, 'yes');
-          updateItem(item, { status: 'paying' });
+      : await payForOffer(buyer, item, sessionStorage.getItem(storageKey) ? item.paymentHash : '', hash => {
+          if (hash) sessionStorage.setItem(storageKey, 'yes');
+          else sessionStorage.removeItem(storageKey);
+          updateItem(item, { status: hash ? 'paying' : 'locked' });
         }, item.payment?.status === 'Failed');
     updateItem(item, { payment: result, status: result.status === 'Failed' ? 'failed' : 'paying' });
     setStatus(item.preview.title + ' — payment ' + result.status);
