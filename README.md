@@ -44,4 +44,20 @@ The reported run paid 1 CKB plus 0.001 CKB routing fee, for 1.001 CKB per invoic
 The example specs ship as public demo fixtures in the application source. The paywall demonstration runs on their encrypted offers. The shop has no account system, mainnet support, or quality guarantee. Previews are seller-supplied public data.
 
 See the [Fiber tutorial](https://www.fiber.world/docs/build/encrypted-data-payment).
-[Shot list](docs/screenshots/SHOTLIST.md) and [recording script](docs/RECORDING.md). Live captures are pending.
+## Observed live Testnet run
+
+| Purchase | Click to success | Routing fee | Total paid |
+| --- | ---: | ---: | ---: |
+| Harbor design system | 2.66 s | 0.001 CKB | 1.001 CKB |
+| Product requirements template | 2.18 s | 0.001 CKB | 1.001 CKB |
+
+- Harbor payment hash `0x6c88fd251e46704c01fe6af60f4819b10dd46249bf553dfba952be281c7259c1`
+- PRD template payment hash `0xafbaad621dd802708eef49d4edbc43ea89da19c55d1e270fc23d6ffd0b5b2f23`
+
+Hashing the settled Harbor preimage with SHA-256 reproduced its payment hash. The form component and motion specifications stayed locked.
+
+[Watch the demo recording](docs/design-spec-shop-demo.mp4) · [Screenshot gallery](docs/screenshots)
+
+![Locked catalogue with free visual previews](docs/screenshots/04-buyer-catalogue-locked-items-with-previews.png)
+
+![Unlocked Harbor specification](docs/screenshots/07-item-1-unlocked-rendered-spec.png)
