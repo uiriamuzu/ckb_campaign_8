@@ -29,3 +29,23 @@ code { overflow-wrap: anywhere; color: #a3f53a; }
 .type-scale li { display: grid; gap: .25rem; }
 .type-scale small { font-size: .75rem; }
 .spacing span { display: block; height: .35rem; background: currentColor; }
+
+body { background: #f4eee5; color: #302137; font-family: "Instrument Sans", system-ui, sans-serif; }
+main { max-width: 1200px; gap: 16px; padding-top: 32px; }
+h1, h2, h3 { font-family: "Instrument Serif", Georgia, serif; font-weight: 500; }
+h1 { border-bottom: 3px double #8f6b89; padding-bottom: 10px; line-height: 1; }
+h2, h3 { margin: 0; }
+h2 { font-size: 1.75rem; }
+.eyebrow, code { color: #6a355f; }
+.status { background: #eadceb; color: #502749; padding: 10px 14px; margin: 0; }
+.card { min-width: 0; align-content: start; border-color: #cebcc8; border-top: 3px solid #795072; background: #fffaf4; padding: 16px; gap: 8px; }
+.card p, .card ul { margin-block: 4px; }
+.card button, .card a { justify-self: start; }
+button, textarea, a { border-color: #b69bad; background: #f5eaf2; color: #4f264a; padding: 8px 12px; }
+button { background: #653958; color: #fffaf4; }
+button:hover:not(:disabled) { background: #49243f; border-color: #49243f; }
+button:focus-visible, a:focus-visible, textarea:focus-visible { outline: 3px solid #9c5234; outline-offset: 2px; }
+button:disabled { background: #eee4eb; color: #70616c; opacity: 1; }
+article.card section { border-top: 1px solid #d9c9d2; padding-top: 8px; }
+article.card > p { color: #6a355f; font-weight: 700; }
+.spec .spacing span { color: #9c5234; }
