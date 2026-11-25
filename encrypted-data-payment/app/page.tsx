@@ -1,5 +1,6 @@
 'use client';
 
+import { products, type Spec } from '../lib/catalogue';
 import { channelFundingGuidance } from '../lib/channel-funding';
 import { useEffect, useRef, useState } from 'react';
 import { scriptToAddress, type Channel, type FiberBrowserNode, type GetPaymentResult } from '@fiber-pay/sdk/browser';
@@ -12,7 +13,6 @@ import { encryptedSessionKey, encryptedBuyerProfile, encryptedSellerProfile, sav
 
 type Role = 'buyer' | 'seller';
 const ckb = (value: string) => `${Number(BigInt(value)) / 100_000_000}`;
-const sample = 'Fiber Testnet report\n\nPayment settled. The encrypted result is readable.';
 
 export default function Page() {
   const nodes = useRef<Partial<Record<Role, FiberBrowserNode>>>({});
@@ -24,7 +24,7 @@ export default function Page() {
   const [addresses, setAddresses] = useState<Partial<Record<Role, string>>>({});
   const [connected, setConnected] = useState<Partial<Record<Role, boolean>>>({});
   const [channels, setChannels] = useState<Partial<Record<Role, Channel>>>({});
-  const [plaintext, setPlaintext] = useState(sample);
+  const [selected, setSelected] = useState(0);
   const [generated, setGenerated] = useState('');
   const [received, setReceived] = useState('');
   const [offer, setOffer] = useState<EncryptedOffer | null>(null);
@@ -119,7 +119,7 @@ export default function Page() {
 
   async function makeOffer() {
     if (!nodes.current.seller || !channels.seller || !routeReady || generated || attempt) return;
-    const value = await createOffer(nodes.current.seller, channels.seller, plaintext);
+    const value = await createOffer(nodes.current.seller, channels.seller, JSON.stringify(products[selected]));
     save({ generatedOffer: value }); setGenerated(value); setStatus('Invoice created.');
   }
 
@@ -184,8 +184,8 @@ export default function Page() {
     </section>)}</div>
     <section className="card"><h2>Liquidity</h2><button disabled={busy || !channels.seller || !ready(channels.seller) || BigInt(channels.seller.local_balance) < 500_000_000n} onClick={() => void run(moveLiquidity)}>Send / check 5 CKB transfer</button></section>
     <div className="grid exchange"><section className="card"><h2>Seller</h2>
-      <textarea aria-label="Seller result" disabled={busy || Boolean(generated)} value={plaintext} onChange={e => setPlaintext(e.target.value)} />
-      <button disabled={busy || !routeReady || !plaintext.trim() || Boolean(generated || attempt)} onClick={() => void run(makeOffer)}>Encrypt & create 1 CKB Invoice</button>
+      <label>Product <select disabled={busy || Boolean(generated)} value={selected} onChange={e => setSelected(Number(e.target.value))}>{products.map((product, index) => <option key={product.title} value={index}>{product.title}</option>)}</select></label>
+      <button disabled={busy || !routeReady || Boolean(generated || attempt)} onClick={() => void run(makeOffer)}>Encrypt & create 1 CKB Invoice</button>
       <textarea aria-label="Generated offer" readOnly value={generated} />
       <button disabled={!generated || busy} onClick={() => void run(async () => { await navigator.clipboard.writeText(generated); setStatus('Offer copied.'); })}>Copy offer</button>
     </section><section className="card"><h2>Buyer</h2>
